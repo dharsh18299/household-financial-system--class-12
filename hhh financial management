@@ -1,0 +1,266 @@
+import mysql.connector
+# Password checking function
+def password_validation(password):
+    if password.isdigit() and password.isalpha:
+        return True
+    return False
+
+# Check username already exists
+def check_username(username):
+    con = connection()
+    cur = con.cursor()
+    cur.execute("SELECT username FROM users WHERE username=%s",(username,))
+    result = cur.fetchone()
+    con.close()
+    if result:
+        return True
+    return False
+
+# Account creation function
+def create_account():
+
+    con = connection()
+    cur = con.cursor()
+
+    print("\n******** CREATE ACCOUNT ********")
+
+    while True:
+        username = input("Enter Username : ")
+        if check_username(username):
+            print("Username already exists.")
+        else:
+            break
+
+    while True:
+        password = input("Enter Password : ")
+
+        if password_validation(password):
+            break
+        else:
+            print("Password must contain:")
+            print("- Minimum 8 characters")
+            print("- One uppercase letter")
+            print("- One lowercase letter")
+            print("- One number")
+            print("- One special character")
+
+    confirm = input("Confirm Password : ")
+
+    if password != confirm:
+        print("Password does not match.")
+        con.close()
+        return
+
+    limit = float(input("Enter Family Financial Limit : "))
+    work = input("Working As : ")
+
+    movn = input("Favourite Movie : ")
+    hint = input("Movie Hint : ")
+
+    print("\nEnter Your Monthly Expense Reasons")
+    r1 = input("Reason 1 : ")
+    r2 = input("Reason 2 : ")
+    r3 = input("Reason 3 : ")
+    r4 = input("Reason 4 : ")
+    r5 = input("Reason 5 : ")
+
+    sql = """
+    INSERT INTO users
+    (
+        username,
+        password,
+        financial_limit,
+        working_as,
+        fav_movie,
+        movie_hint,
+        reason1,
+        reason2,
+        reason3,
+        reason4,
+        reason5
+    )
+    VALUES
+    (
+        %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+    )
+    """
+
+    values = (
+        username,
+        password,
+        limit,
+        work,
+        movn,
+        hint,
+        r1,
+        r2,
+        r3,
+        r4,
+        r5
+    )
+
+    print(values)
+
+    cur.execute(sql, values)
+    con.commit()
+
+    print("\nAccount Created Successfully")
+
+    con.close()
+
+def connection():
+    con = mysql.connector.connect(host="localhost",user="root",password='12345678',database="household_finance")
+    return con
+
+
+
+def forgot_password(username):
+
+    con = connection()
+    cur = con.cursor()
+
+    # Get favourite movie, hint and password
+    cur.execute(
+        """
+        SELECT fav_movie, movie_hint, password
+        FROM users
+        WHERE username = %s
+        """,
+        (username,)
+    )
+
+    data = cur.fetchone()
+
+    if data is None:
+        print("Username not found")
+        con.close()
+        return False
+
+    movie = input("Enter Favourite Movie : ")
+
+    if movie.strip().lower() == data[0].strip().lower() :
+
+        print("\nYour Password is :", data[2])
+
+        con.close()
+        return True
+
+    else:
+        print("Incorrect Favourite Movie or Hint")
+
+        con.close()
+        return False
+
+
+
+def login():
+
+    con = connection()
+    cur = con.cursor()
+
+    print("\n******** LOGIN ********")
+
+    username = input("Enter Username : ")
+    password = input("Enter Password : ")
+
+    sql = """
+    SELECT financial_limit
+    FROM users
+    WHERE username = %s
+      AND password = %s
+    """
+
+    cur.execute(sql, (username, password))
+
+    user = cur.fetchone()
+
+    if user is None:
+        print("\nWrong Username or Password")
+        con.close()
+        return None
+
+    print("\nLogin Successful")
+
+    financial_limit = user[0]
+
+    # Get user's expense reasons
+    cur.execute("""
+        SELECT reason1, reason2, reason3, reason4, reason5
+        FROM users
+        WHERE username = %s
+    """, (username,))
+
+    reasons = cur.fetchone()
+
+    print("\nYour Expense Reasons")
+    print("--------------------")
+    for i in range(5):
+        print(f"{i+1}. {reasons[i]}")
+
+    choice = int(input("Choose Reason (1-5): "))
+    amount = float(input("Enter Debit Amount : "))
+
+    reason = reasons[choice - 1]
+
+    # Total amount already spent
+    cur.execute(
+        "SELECT IFNULL(SUM(amount),0) FROM transactions WHERE username=%s",
+        (username,)
+    )
+
+    total_spent = cur.fetchone()[0]
+
+    balance_left = financial_limit - (total_spent + amount)
+
+    # Save transaction
+    cur.execute("""
+        INSERT INTO transactions
+        (username, reason, amount, balance_left)
+        VALUES (%s, %s, %s, %s)
+    """, (username, reason, amount, balance_left))
+
+    con.commit()
+
+    print("\nTransaction Saved Successfully")
+    print("Balance Left :", balance_left)
+
+    # Show all transactions
+    print("\n========== TRANSACTION HISTORY ==========")
+    print("{:<5} {:<20} {:<12} {:<15}".format(
+        "No", "Reason", "Amount", "Balance Left"))
+    print("-" * 60)
+
+    cur.execute("""
+        SELECT reason, amount, balance_left
+        FROM transactions
+        WHERE username = %s
+    """, (username,))
+
+    records = cur.fetchall()
+
+    for i, row in enumerate(records, start=1):
+        print("{:<5} {:<20} {:<12} {:<15}".format(
+            i, row[0], row[1], row[2]))
+
+    con.close()
+
+    return username
+
+def show_reasons(user):
+
+    print("\nYour expense reasons")
+
+    print("--------------------")
+
+    print("1.",user[6])
+
+    print("2.",user[7])
+
+    print("3.",user[8])
+
+    print("4.",user[9])
+
+    print("5.",user[10])
+
+
+
