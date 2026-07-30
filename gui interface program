@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
-from household_financial_management import (create_account,connection,login,forgot_password,show_reasons)
+from agk import (create_account,connection,login,forgot_password,show_reasons)
 current_user = None
 
 def create_account_gui():
@@ -38,7 +38,7 @@ tk.Label(root,text="Username",font=("Arial", 12),bg="#EAF6F6").pack()
 username_entry = tk.Entry(root, width=30)
 username_entry.pack(pady=5)
 tk.Button(root,text="Create Account",width=25,bg="green",fg="white",command=create_account_gui).pack(pady=8)
-tk.Button(root,text="Login",width=25,bg="blue",fg="white",command=login_gu).pack(pady=8)
+tk.Button(root,text="Login",width=25,bg="blue",fg="white",command=login_gui).pack(pady=8)
 tk.Button(root,text="Forgot Password",width=25,bg="orange",command=forgot_password_gui).pack(pady=8)
 tk.Button(root,text="Show Expense Reasons",width=25,command=reasons_gui).pack(pady=8)
 tk.Button(root,text="Exit",width=25,bg="red",fg="white",command=root.destroy).pack(pady=20)
