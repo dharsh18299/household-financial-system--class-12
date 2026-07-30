@@ -32,18 +32,15 @@ def create_account():
     limit = float(input("Enter Family Financial Limit : "))
     work = input("Working As : ")
     movn = input("Favourite Movie : ")
-    hint = input("Movie Hint : ")
     print("\nEnter Your Monthly Expense Reasons")
     r1 = input("Reason 1 : ")
     r2 = input("Reason 2 : ")
     r3 = input("Reason 3 : ")
     r4 = input("Reason 4 : ")
     r5 = input("Reason 5 : ")
-
-    sql = """INSERT INTO users(username,password,financial_limit,working_as,fav_movie,movie_hint,reason1,reason2,reason3,reason4,reason5)
-    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
-
-    values = (username,password,limit,work,movn,hint,r1,r2,r3,r4,r5)
+    sql = """INSERT INTO users(username,password,financial_limit,working_as,fav_movie,reason1,reason2,reason3,reason4,reason5)
+    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
+    values = (username,password,limit,work,movn,r1,r2,r3,r4,r5)
     print(values)
     cur.execute(sql, values)
     con.commit()
@@ -56,79 +53,38 @@ def connection():
 def forgot_password(username):
     con = connection()
     cur = con.cursor()
-    cur.execute("""SELECT fav_movie, movie_hint, password FROM users WHERE username = %s""",(username,))
+
+    cur.execute("SELECT fav_movie, password FROM users WHERE username = %s", (username,))
     data = cur.fetchone()
+
     if data is None:
         print("Username not found")
         con.close()
         return False
+
     movie = input("Enter Favourite Movie : ")
-    if movie.strip().lower() == data[0].strip().lower() :
-        print("\nYour Password is :", data[2])
+
+    if movie.strip().lower() == data[0].strip().lower():
+        print("\nYour Password is :", data[1])   # Changed from data[2] to data[1]
         con.close()
         return True
     else:
-        print("Incorrect Favourite Movie or Hint")
+        print("Incorrect Favourite Movie")
         con.close()
         return False
-def login():
-
+def login(username, password):
     con = connection()
     cur = con.cursor()
-    print("\n******** LOGIN ********")
-    username = input("Enter Username : ")
-    password = input("Enter Password : ")
-    sql = """SELECT financial_limit FROM users WHERE username = %s AND password = %s"""
+    sql = """SELECT username FROM users WHERE username=%sAND password=%s"""
     cur.execute(sql, (username, password))
     user = cur.fetchone()
-    if user is None:
-        print("\nWrong Username or Password")
-        con.close()
-        return None
-    print("\nLogin Successful")
-    financial_limit = user[0]
-    # Get user's expense reasons
-    cur.execute("""SELECT reason1, reason2, reason3, reason4, reason5 FROM users WHERE username = %s""", (username,))
-    reasons = cur.fetchone()
-    print("\nYour Expense Reasons")
-    print("--------------------")
-    for i in range(5):
-        print(f"{i+1}. {reasons[i]}")
-
-    choice = int(input("Choose Reason (1-5): "))
-    amount = float(input("Enter Debit Amount : "))
-
-    reason = reasons[choice - 1]
-
-    # Total amount already spent
-    cur.execute("SELECT IFNULL(SUM(amount),0) FROM transactions WHERE username=%s",(username,))
-    total_spent = cur.fetchone()[0]
-    balance_left = financial_limit - (total_spent + amount)
-    # Save transaction
-    cur.execute("""INSERT INTO transactions (username, reason, amount, balance_left) VALUES (%s, %s, %s, %s)""", (username, reason, amount, balance_left))
-    con.commit()
-    print("\nTransaction Saved Successfully")
-    print("Balance Left :", balance_left)
-    # Show all transactions
-    print("\n========== TRANSACTION HISTORY ==========")
-    print("{:<5} {:<20} {:<12} {:<15}".format(
-        "No", "Reason", "Amount", "Balance Left"))
-    print("-" * 60)
-
-    cur.execute("""SELECT reason, amount, balance_left FROM transactions WHERE username = %s""", (username,))
-
-    records = cur.fetchall()
-
-    for i, row in enumerate(records, start=1):
-        print("{:<5} {:<20} {:<12} {:<15}".format(
-            i, row[0], row[1], row[2]))
     con.close()
-    return username
+    if user:
+        return username
+    return None
 def show_reasons(username):
-
     con = connection()
     cur = con.cursor()
-
     cur.execute("""SELECT reason1, reason2, reason3, reason4, reason5 FROM users WHERE username = %s """, (username,))
     reasons = cur.fetchone()
     print("\nYour Expense Reasons")
@@ -137,5 +93,52 @@ def show_reasons(username):
         print(f"{i+1}. {reasons[i]}")
     cur.close()
     con.close()
-    
-
+import mysql.connector
+def create_database():
+    con = mysql.connector.connect(host="localhost",user="root",password="12345678")
+    cur = con.cursor()
+    cur.execute("CREATE DATABASE IF NOT EXISTS household_finance")
+    cur.execute("USE household_finance")
+    cur.execute("CREATE TABLE IF NOT EXISTS users(username VARCHAR(30) PRIMARY KEY,password VARCHAR(50),financial_limit FLOAT,working_as VARCHAR(50),fav_movie VARCHAR(50),movie_hint VARCHAR(100),reason1 VARCHAR(50),reason2 VARCHAR(50),reason3 VARCHAR(50),reason4 VARCHAR(50),reason5 VARCHAR(50))")
+    cur.execute("CREATE TABLE IF NOT EXISTS transactions(id INT AUTO_INCREMENT PRIMARY KEY,username VARCHAR(30),reason VARCHAR(50),amount FLOAT,balance_left FLOAT,date1 DATE,time1 TIME)")
+    con.commit()
+    con.close()
+    print("Database and tables created successfully.")
+def do_transaction(username):
+    con = connection()
+    cur = con.cursor()
+    cur.execute("SELECT financial_limit FROM users WHERE username=%s",(username,) )
+    financial_limit = cur.fetchone()[0]
+    cur.execute("SELECT reason1, reason2, reason3, reason4, reason5 FROM users WHERE username=%s",(username,))
+    reasons = cur.fetchone()
+    print("\nYour Expense Reasons")
+    print("--------------------")
+    for i, reason in enumerate(reasons, start=1):
+        print(f"{i}. {reason}")
+    choice = int(input("Choose Reason (1-5): "))
+    amount = float(input("Enter Debit Amount : "))
+    reason = reasons[choice - 1]
+    cur.execute("SELECT IFNULL(SUM(amount),0) FROM transactions WHERE username=%s",(username,))
+    total_spent = cur.fetchone()[0]
+    balance_left = financial_limit - (total_spent + amount)
+    cur.execute("""INSERT INTO transactions (username, reason, amount, balance_left) VALUES (%s,%s,%s,%s)""",(username, reason, amount, balance_left))
+    con.commit()
+    print("\nTransaction Added Successfully")
+    print("Remaining Balance :", balance_left)
+    con.close()
+def show_transactions(username):
+    con = connection()
+    cur = con.cursor()
+    cur.execute("SELECT * FROM transactions WHERE username=%s",(username,))
+    rows = cur.fetchall()
+    print("\n******** TRANSACTIONS ********")
+    print("-" * 70)
+    print("ID\tReason\t\tAmount\tBalance Left")
+    print("-" * 70)
+    if not rows:
+        print("No transactions found.")
+    else:
+        for row in rows:
+            print(f"{row[0]}\t{row[2]}\t\t{row[3]}\t{row[4]}")
+    cur.close()
+    con.close()
