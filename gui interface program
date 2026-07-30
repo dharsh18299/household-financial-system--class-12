@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
-from agk import (create_account,connection,login,forgot_password,show_reasons)
+from household_finance_system import (create_account,connection,login,forgot_password,show_reasons)
 current_user = None
 
 def create_account_gui():
